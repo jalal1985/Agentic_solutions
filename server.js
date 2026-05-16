@@ -88,6 +88,115 @@ app.post('/api/agents/run', async (req, res) => {
   }
 });
 
+function compareBuildToMockup(build, target) {
+  const differences = [];
+  if (build.brand !== target.brand) differences.push('brand');
+  if (build.heroText !== target.heroText) differences.push('heroText');
+  if (build.heroCtaLink !== target.heroCtaLink) differences.push('heroCtaLink');
+  if (build.hasDemoPage !== target.hasDemoPage) differences.push('demoPage');
+  target.sections.forEach((section) => {
+    if (!build.sections.includes(section)) differences.push(`missing:${section}`);
+  });
+  build.sections.forEach((section) => {
+    if (!target.sections.includes(section)) differences.push(`unexpected:${section}`);
+  });
+  return [...new Set(differences)];
+}
+
+function recommendationsFromDifferences(differences) {
+  return differences.map((diff) => {
+    if (diff === 'brand') return 'Update branding to databrain.';
+    if (diff === 'heroText') return 'Match hero headline text to the requested mockup.';
+    if (diff === 'heroCtaLink') return 'Point the hero CTA to /demo.';
+    if (diff === 'demoPage') return 'Add the demo request page and link it from the hero CTA.';
+    if (diff.startsWith('missing:')) return `Add the ${diff.split(':')[1]} section.`;
+    if (diff.startsWith('unexpected:')) return `Remove the unexpected ${diff.split(':')[1]} section.`;
+    return `Adjust ${diff}.`;
+  });
+}
+
+function applyRecommendations(build, recommendations) {
+  const updated = { ...build };
+  recommendations.forEach((rec) => {
+    if (rec.includes('branding')) updated.brand = 'databrain';
+    if (rec.includes('hero headline')) updated.heroText = 'Scale agentic AI successfully across the enterprise';
+    if (rec.includes('hero CTA')) updated.heroCtaLink = '/demo';
+    if (rec.includes('demo request page')) updated.hasDemoPage = true;
+    if (rec.includes('Add the features section')) updated.sections = Array.from(new Set([...updated.sections, 'features']));
+    if (rec.includes('Add the useCases section')) updated.sections = Array.from(new Set([...updated.sections, 'useCases']));
+    if (rec.includes('Add the clients section')) updated.sections = Array.from(new Set([...updated.sections, 'clients']));
+    if (rec.includes('Add the demo section')) updated.sections = Array.from(new Set([...updated.sections, 'demo']));
+    if (rec.includes('Add the testimonials section')) updated.sections = Array.from(new Set([...updated.sections, 'testimonials']));
+    if (rec.includes('Add the recognition section')) updated.sections = Array.from(new Set([...updated.sections, 'recognition']));
+    if (rec.includes('Remove the unexpected demo section')) updated.sections = updated.sections.filter((section) => section !== 'demo');
+  });
+  return updated;
+}
+
+app.post('/api/agents/rebuild', (req, res) => {
+  const mockup = {
+    brand: 'databrain',
+    heroText: 'Scale agentic AI successfully across the enterprise',
+    heroCtaLink: '/demo',
+    hasDemoPage: true,
+    sections: ['features', 'useCases', 'clients', 'demo', 'testimonials', 'recognition']
+  };
+
+  let build = {
+    brand: 'Agentic AI',
+    heroText: 'Scale agentic AI successfully across the enterprise',
+    heroCtaLink: '/demo',
+    hasDemoPage: false,
+    sections: ['features', 'useCases', 'clients']
+  };
+
+  const logs = [];
+  let iteration = 1;
+  let differences = compareBuildToMockup(build, mockup);
+
+  logs.push({
+    agent: 'agent1-builder',
+    details: 'Initial build completed with basic enterprise sections.',
+    build
+  });
+  logs.push({
+    agent: 'agent2-checker',
+    diff: differences,
+    details: `Mockup checker found ${differences.length} difference(s).`
+  });
+  logs.push({
+    agent: 'agent3-inspector',
+    recommendations: recommendationsFromDifferences(differences),
+    details: 'Inspector reviewed the build and suggested corrective actions.'
+  });
+
+  while (differences.length > 1 && iteration < 3) {
+    iteration += 1;
+    const recs = recommendationsFromDifferences(differences);
+    build = applyRecommendations(build, recs);
+    differences = compareBuildToMockup(build, mockup);
+
+    logs.push({
+      agent: 'agent1-builder',
+      details: `Rebuilt page after iteration ${iteration - 1}.`,
+      build
+    });
+    logs.push({
+      agent: 'agent2-checker',
+      diff: differences,
+      details: `Mockup checker evaluated the rebuild and found ${differences.length} difference(s).`
+    });
+    logs.push({
+      agent: 'agent3-inspector',
+      recommendations: recommendationsFromDifferences(differences),
+      details: 'Inspector reviewed the second build and suggested remaining improvements.'
+    });
+  }
+
+  const status = differences.length === 0 ? 'completed' : 'needs attention';
+  return res.json({ status, iterations: iteration, finalDifferences: differences, logs });
+});
+
 // Demo request endpoint - stores submissions as JSON lines
 app.post('/api/demo-request', (req, res) => {
   const payload = req.body || {};

@@ -87,3 +87,42 @@ document.getElementById('runBI').addEventListener('click', async () => {
     out.textContent = `❌ Error: ${err.message}`;
   }
 });
+
+// 3-AGENT REVIEW WORKFLOW
+async function callReview(payload) {
+  const res = await fetch('/api/agents/rebuild', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!res.ok) throw new Error('Network error: ' + res.status);
+  return res.json();
+}
+
+document.getElementById('runReview').addEventListener('click', async () => {
+  const out = document.getElementById('reviewOutput');
+  out.textContent = '🔄 Running 3-agent review workflow...\nAgent 1 builds, Agent 2 compares to mockup, Agent 3 recommends changes.';
+  
+  try {
+    const data = await callReview({ target: 'kore-ai-mockup' });
+    const lines = [];
+    lines.push(`Review status: ${data.status}`);
+    lines.push(`Iterations: ${data.iterations}`);
+    lines.push(`Final difference count: ${data.finalDifferences.length}`);
+    lines.push('');
+    data.logs.forEach((entry, index) => {
+      lines.push(`[${index + 1}] ${entry.agent.toUpperCase()}`);
+      lines.push(`  ${entry.details}`);
+      if (entry.diff) {
+        lines.push(`  Differences: ${entry.diff.join(', ')}`);
+      }
+      if (entry.recommendations) {
+        lines.push(`  Recommendations: ${entry.recommendations.join(', ')}`);
+      }
+      lines.push('');
+    });
+    out.textContent = lines.join('\n');
+  } catch (err) {
+    out.textContent = `❌ Error: ${err.message}`;
+  }
+});
