@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Request a Demo — databrain</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <nav class="navbar">
+      <div class="container">
+        <div class="navbar-brand">
+          <a href="https://www.databrain.nl" target="_blank" rel="noopener" class="brand-link"><h2>databrain</h2></a>
+        </div>
+        <div class="navbar-menu">
+          <a href="/">Home</a>
+          <a href="#contact">Contact</a>
+        </div>
+      </div>
+    </nav>
+
+    <main class="container" style="padding:48px 24px;">
+      <h1>Request a Demo</h1>
+      <p>Fill in the form and our team will contact you to schedule a demo.</p>
+
+      <form id="demoForm" class="demo-form">
+        <label>Full name*</label>
+        <input type="text" id="name" required placeholder="Your full name">
+
+        <label>Business email*</label>
+        <input type="email" id="email" required placeholder="you@company.com">
+
+        <label>Company*</label>
+        <input type="text" id="company" required placeholder="Company name">
+
+        <label>Country*</label>
+        <input type="text" id="country" placeholder="Country">
+
+        <label>Product / Interest</label>
+        <input type="text" id="product" placeholder="Agentic AI Platform / BI Reports / Other">
+
+        <label>Message</label>
+        <textarea id="message" placeholder="Optional message"></textarea>
+
+        <div style="margin-top:16px;">
+          <button type="submit" class="cta-btn primary">Submit Request</button>
+          <a href="/" class="cta-btn" style="margin-left:12px;">Cancel</a>
+        </div>
+      </form>
+
+      <div id="result" style="margin-top:18px;"></div>
+    </main>
+
+    <script src="/demo.js"></script>
+  </body>
+</html>

@@ -7,6 +7,10 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+const fs = require('fs');
+const dataDir = path.join(__dirname, 'data');
+try { fs.mkdirSync(dataDir, { recursive: true }); } catch (e) { /* ignore */ }
+
 // Simulated subagent runner
 function runSubagent(name, task, payload) {
   return new Promise((resolve) => {
@@ -81,6 +85,19 @@ app.post('/api/agents/run', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Demo request endpoint - stores submissions as JSON lines
+app.post('/api/demo-request', (req, res) => {
+  const payload = req.body || {};
+  const out = path.join(dataDir, 'demo_submissions.jsonl');
+  try {
+    fs.appendFileSync(out, JSON.stringify(payload) + '\n', 'utf8');
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('Failed to save demo request', err);
+    return res.status(500).json({ error: 'Failed to save' });
   }
 });
 
