@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Agentic AI Platform — Multi-Agent Workflows</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <!-- NAVIGATION -->
+    <nav class="navbar">
+      <div class="container">
+        <div class="navbar-brand">
+          <h2>Agentic AI</h2>
+        </div>
+        <div class="navbar-menu">
+          <a href="#features">Features</a>
+          <a href="#use-cases">Use Cases</a>
+          <a href="#testimonials">Testimonials</a>
+          <a href="#contact">Contact</a>
+        </div>
+        <button class="cta-btn" onclick="document.getElementById('contact').scrollIntoView({behavior:'smooth'})">GET DEMO</button>
+      </div>
+    </nav>
+
+    <!-- HERO SECTION -->
+    <header class="hero">
+      <div class="container hero-content">
+        <div class="hero-text">
+          <span class="badge">AGENTIC AI PLATFORM</span>
+          <h1>Scale agentic AI successfully across the enterprise</h1>
+          <p>Unify fragmented agentic AI initiatives with a unified platform that orchestrates complex, multi-agent workflows across teams, systems, and use cases.</p>
+          <div class="hero-ctas">
+            <button class="cta-btn primary" onclick="document.getElementById('demo-section').scrollIntoView({behavior:'smooth'})">REQUEST A DEMO</button>
+            <button class="cta-btn secondary">ANALYST REPORTS</button>
+          </div>
+        </div>
+        <div class="hero-visual">
+          <div class="agent-diagram">
+            <div class="agent-node">Agent 1</div>
+            <div class="agent-node">Agent 2</div>
+            <div class="agent-node">Agent 3</div>
+            <div class="agent-node">Verifier</div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- FEATURES SECTION -->
+    <section id="features" class="features">
+      <div class="container">
+        <h2>Power AI agents at enterprise scale</h2>
+        <div class="feature-cards">
+          <div class="card">
+            <h3>🛒 Multi-Agent Shopping Check</h3>
+            <p>Orchestrate specialized agents to validate prices, check stock, recommend alternatives, and verify accuracy—all in parallel.</p>
+            <a href="#" class="discover">Discover more →</a>
+          </div>
+          <div class="card">
+            <h3>📊 Multi-Agent BI Reports</h3>
+            <p>Aggregate data, detect anomalies, generate insights, and verify findings with cross-agent validation for reliable intelligence.</p>
+            <a href="#" class="discover">Discover more →</a>
+          </div>
+          <div class="card">
+            <h3>🔄 Multi-Agent Orchestration</h3>
+            <p>Coordinate multiple specialized AI agents to execute complex workflows, ensuring each agent performs its specific task reliably.</p>
+            <a href="#" class="discover">Discover more →</a>
+          </div>
+          <div class="card">
+            <h3>🛡️ Agent Verification & Governance</h3>
+            <p>Real-time observability and governance across all agents with cross-checks to ensure data accuracy and compliance.</p>
+            <a href="#" class="discover">Discover more →</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- USE CASES / PRE-BUILT APPLICATIONS -->
+    <section id="use-cases" class="use-cases">
+      <div class="container">
+        <h2>Pre-built AI Agent Templates</h2>
+        <div class="use-case-grid">
+          <div class="use-case-item">
+            <strong>Retail Operations</strong>
+            <p>Inventory, pricing, recommendations</p>
+          </div>
+          <div class="use-case-item">
+            <strong>Customer Service</strong>
+            <p>Multi-channel support with verification</p>
+          </div>
+          <div class="use-case-item">
+            <strong>Finance & Compliance</strong>
+            <p>Audit agents with cross-validation</p>
+          </div>
+          <div class="use-case-item">
+            <strong>HR Operations</strong>
+            <p>Candidate screening, benefits processing</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CLIENTS / TRUST SIGNALS -->
+    <section class="clients">
+      <div class="container">
+        <h2>Trusted by leading enterprises</h2>
+        <div class="logo-grid">
+          <div class="logo">Experian</div>
+          <div class="logo">Morgan Stanley</div>
+          <div class="logo">Pfizer</div>
+          <div class="logo">Deutsche Bank</div>
+          <div class="logo">Coca-Cola</div>
+          <div class="logo">Autodesk</div>
+          <div class="logo">J&amp;J</div>
+          <div class="logo">AMD</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- INTERACTIVE DEMO SECTION -->
+    <section id="demo-section" class="demo-section">
+      <div class="container">
+        <h2>Try Multi-Agent Workflows</h2>
+        
+        <div class="demo-tabs">
+          <button class="tab-btn active" data-tab="shopping">Shopping Check</button>
+          <button class="tab-btn" data-tab="bi">BI Report</button>
+        </div>
+
+        <div class="tab-content active" id="tab-shopping">
+          <h3>Multi-Agent Shopping Validation</h3>
+          <p>Agents: Price Checker | Stock Checker | Recommender | Verifier</p>
+          <textarea id="items" placeholder="Enter items, one per line&#10;Example:&#10;Laptop&#10;Headphones&#10;Water bottle">Laptop
+Headphones
+Water bottle</textarea>
+          <button class="cta-btn primary" id="runShopping">RUN AGENTS</button>
+          <pre id="shoppingOutput" class="output"></pre>
+        </div>
+
+        <div class="tab-content" id="tab-bi">
+          <h3>Multi-Agent BI Report Generation</h3>
+          <p>Agents: Data Aggregator | Anomaly Detector | Insights Writer | Verifier</p>
+          <label>Date Range: <input id="range" value="30d"></label>
+          <button class="cta-btn primary" id="runBI">RUN AGENTS</button>
+          <pre id="biOutput" class="output"></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- TESTIMONIALS -->
+    <section id="testimonials" class="testimonials">
+      <div class="container">
+        <h2>What customers say</h2>
+        <div class="testimonial-grid">
+          <div class="testimonial">
+            <p>"The multi-agent approach saved us 60% of manual validation time. Each agent specializes in one task—price checking, availability, recommendations—and works in parallel."</p>
+            <strong>— Sarah Chen, VP Operations, RetailCorp</strong>
+          </div>
+          <div class="testimonial">
+            <p>"Cross-agent verification gives us confidence in our BI reports. Anomalies are caught before they reach leadership."</p>
+            <strong>— Michael Rodriguez, Chief Data Officer, FinanceHub</strong>
+          </div>
+          <div class="testimonial">
+            <p>"Easy to deploy, powerful orchestration. We went from pilot to production in 3 weeks."</p>
+            <strong>— Emma Thompson, Engineering Lead, TechScale</strong>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RECOGNITION -->
+    <section class="recognition">
+      <div class="container">
+        <h2>Industry Recognition</h2>
+        <div class="badge-grid">
+          <div class="award-badge">🏆 Gartner Leader</div>
+          <div class="award-badge">⭐ Forrester Top Performer</div>
+          <div class="award-badge">🎯 Best-in-Class Multi-Agent</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA / CONTACT -->
+    <section id="contact" class="contact-cta">
+      <div class="container">
+        <h2>Ready to scale agentic AI?</h2>
+        <p>Join enterprises leveraging multi-agent workflows for faster, more reliable automation.</p>
+        <button class="cta-btn primary">TALK TO AN EXPERT</button>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <div class="container">
+        <div class="footer-content">
+          <div class="footer-section">
+            <h4>Platform</h4>
+            <a href="#">Multi-Agent Orchestration</a>
+            <a href="#">Agent Marketplace</a>
+            <a href="#">Security & Governance</a>
+          </div>
+          <div class="footer-section">
+            <h4>Resources</h4>
+            <a href="#">Documentation</a>
+            <a href="#">Blog</a>
+            <a href="#">Case Studies</a>
+          </div>
+          <div class="footer-section">
+            <h4>Company</h4>
+            <a href="#">About</a>
+            <a href="#">Contact</a>
+            <a href="#">Privacy</a>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <p>&copy; 2026 Agentic AI Platform. All rights reserved.</p>
+        </div>
+      </div>
+    </footer>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
