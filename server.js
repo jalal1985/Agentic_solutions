@@ -210,18 +210,73 @@ app.post('/api/demo-request', (req, res) => {
   }
 });
 
+// Mockup upload endpoint (Agent 2 uses saved mockups for comparison)
+app.post('/api/mockup', (req, res) => {
+  const { name, description, imageData } = req.body || {};
+  if (!name || !imageData) return res.status(400).json({ error: 'name and imageData required' });
+
+  const mockupsDir = path.join(dataDir, 'mockups');
+  try { fs.mkdirSync(mockupsDir, { recursive: true }); } catch (e) { /* ignore */ }
+
+  // imageData is expected to be a data URL: data:image/png;base64,....
+  const matches = imageData.match(/^data:(image\/.+);base64,(.+)$/);
+  if (!matches) return res.status(400).json({ error: 'invalid imageData' });
+  const mime = matches[1];
+  const b64 = matches[2];
+  const ext = mime.split('/')[1].split('+')[0] || 'png';
+  const filename = `${name.replace(/[^a-z0-9_-]/gi, '_')}.${ext}`;
+  const outPath = path.join(mockupsDir, filename);
+
+  try {
+    fs.writeFileSync(outPath, Buffer.from(b64, 'base64'));
+    // save metadata
+    const meta = { name, description: description || '', filename, uploadedAt: new Date().toISOString() };
+    const metaFile = path.join(mockupsDir, 'mockups.json');
+    let list = [];
+    try { list = JSON.parse(fs.readFileSync(metaFile, 'utf8')); } catch (e) { list = []; }
+    list = list.filter((m) => m.name !== name);
+    list.push(meta);
+    fs.writeFileSync(metaFile, JSON.stringify(list, null, 2));
+    return res.json({ ok: true, meta });
+  } catch (err) {
+    console.error('Failed to save mockup', err);
+    return res.status(500).json({ error: 'Failed to save mockup' });
+  }
+});
+
+
 // Agent 2: Check demo landing page against kore.ai demo-request mockup (simulated)
 app.get('/api/agents/check-demo', (req, res) => {
   // Simulated comparison result
-  const comparison = {
-    ok: false,
-    issues: ['missing:consent-checkbox', 'copy:hero-subtext-too-short'],
-    recommendations: [
-      'Add a consent checkbox for marketing/privacy compliance',
-      'Elaborate hero subtext to include enterprise governance and observability'
-    ]
-  };
-  return res.json(comparison);
+  // Load saved mockups if any
+  const mockupsDir = path.join(dataDir, 'mockups');
+  let meta = [];
+  try { meta = JSON.parse(fs.readFileSync(path.join(mockupsDir, 'mockups.json'), 'utf8')); } catch (e) { meta = []; }
+
+  const issues = [];
+  const recommendations = [];
+
+  if (meta.length === 0) {
+    issues.push('no-reference-mockup');
+    recommendations.push('Upload a reference mockup via /admin/mockups.html');
+  } else {
+    // Basic simulated checks: verify an image exists and description length
+    const primary = meta[0];
+    const imagePath = path.join(mockupsDir, primary.filename);
+    if (!fs.existsSync(imagePath)) {
+      issues.push('missing:reference-image');
+      recommendations.push('Re-upload the reference image.');
+    }
+    if (!primary.description || primary.description.length < 40) {
+      issues.push('copy:short-description');
+      recommendations.push('Provide a longer description highlighting enterprise governance and observability in agentic AI.');
+    }
+    // Example privacy check
+    issues.push('missing:consent-checkbox');
+    recommendations.push('Add a consent checkbox for marketing/privacy compliance.');
+  }
+
+  return res.json({ ok: meta.length > 0 && issues.length === 0, issues, recommendations, meta });
 });
 
 // Always serve index for unknown routes (SPA-friendly)

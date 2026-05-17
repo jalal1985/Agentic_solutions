@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Mockup Upload — Admin</title>
+    <link rel="stylesheet" href="/styles.css">
+    <style>main{padding:32px}</style>
+  </head>
+  <body>
+    <nav class="navbar"><div class="container"><div class="navbar-brand"><a href="/" class="brand-link"><h2>databrain</h2></a></div></div></nav>
+    <main class="container">
+      <h1>Upload Reference Mockup</h1>
+      <p>Upload a screenshot or reference image and an optional description. Agent 2 will use this to compare builds.</p>
+
+      <form id="mockupForm">
+        <label>Mockup name*</label>
+        <input id="name" required placeholder="kore-demo-hero">
+
+        <label>Description</label>
+        <input id="description" placeholder="Short description of the mockup">
+
+        <label>Image*</label>
+        <input id="image" type="file" accept="image/*" required>
+
+        <div style="margin-top:12px;"><button class="cta-btn primary" type="submit">Upload Mockup</button></div>
+      </form>
+
+      <div id="result" style="margin-top:16px"></div>
+    </main>
+
+    <script>
+      document.getElementById('mockupForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('name').value.trim();
+        const description = document.getElementById('description').value.trim();
+        const file = document.getElementById('image').files[0];
+        const resEl = document.getElementById('result');
+        if (!file) return resEl.textContent = 'Select an image file.';
+        resEl.textContent = 'Uploading...';
+        const reader = new FileReader();
+        reader.onload = async () => {
+          const imageData = reader.result; // data URL
+          try {
+            const r = await fetch('/api/mockup', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name, description, imageData }) });
+            const json = await r.json();
+            if (!r.ok) throw new Error(json.error || 'Upload failed');
+            resEl.textContent = '✅ Uploaded: ' + JSON.stringify(json.meta);
+          } catch (err) {
+            resEl.textContent = '❌ ' + err.message;
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+    </script>
+  </body>
+</html>
