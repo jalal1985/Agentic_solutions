@@ -210,6 +210,20 @@ app.post('/api/demo-request', (req, res) => {
   }
 });
 
+// Agent 2: Check demo landing page against kore.ai demo-request mockup (simulated)
+app.get('/api/agents/check-demo', (req, res) => {
+  // Simulated comparison result
+  const comparison = {
+    ok: false,
+    issues: ['missing:consent-checkbox', 'copy:hero-subtext-too-short'],
+    recommendations: [
+      'Add a consent checkbox for marketing/privacy compliance',
+      'Elaborate hero subtext to include enterprise governance and observability'
+    ]
+  };
+  return res.json(comparison);
+});
+
 // Always serve index for unknown routes (SPA-friendly)
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
