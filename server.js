@@ -1,12 +1,15 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const multer = require('multer');
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '20mb' }));
+app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 const fs = require('fs');
 const dataDir = path.join(__dirname, 'data');
 try { fs.mkdirSync(dataDir, { recursive: true }); } catch (e) { /* ignore */ }
@@ -107,7 +110,7 @@ function recommendationsFromDifferences(differences) {
   return differences.map((diff) => {
     if (diff === 'brand') return 'Update branding to databrain.';
     if (diff === 'heroText') return 'Match hero headline text to the requested mockup.';
-    if (diff === 'heroCtaLink') return 'Point the hero CTA to /demo.';
+    if (diff === 'heroCtaLink') return 'Point the hero CTA to /demo-landing.';
     if (diff === 'demoPage') return 'Add the demo request page and link it from the hero CTA.';
     if (diff.startsWith('missing:')) return `Add the ${diff.split(':')[1]} section.`;
     if (diff.startsWith('unexpected:')) return `Remove the unexpected ${diff.split(':')[1]} section.`;
@@ -120,7 +123,7 @@ function applyRecommendations(build, recommendations) {
   recommendations.forEach((rec) => {
     if (rec.includes('branding')) updated.brand = 'databrain';
     if (rec.includes('hero headline')) updated.heroText = 'Scale agentic AI successfully across the enterprise';
-    if (rec.includes('hero CTA')) updated.heroCtaLink = '/demo';
+    if (rec.includes('hero CTA')) updated.heroCtaLink = '/demo-landing';
     if (rec.includes('demo request page')) updated.hasDemoPage = true;
     if (rec.includes('Add the features section')) updated.sections = Array.from(new Set([...updated.sections, 'features']));
     if (rec.includes('Add the useCases section')) updated.sections = Array.from(new Set([...updated.sections, 'useCases']));
@@ -134,28 +137,17 @@ function applyRecommendations(build, recommendations) {
 }
 
 app.post('/api/agents/rebuild', (req, res) => {
-  const { mockupName, mockupNames } = req.body || {};
+  const { mockupNames } = req.body || {};
 
-  // load mockups metadata
   const mockupsDir = path.join(dataDir, 'mockups');
   let meta = [];
   try { meta = JSON.parse(fs.readFileSync(path.join(mockupsDir, 'mockups.json'), 'utf8')); } catch (e) { meta = []; }
 
-  const pick = [];
-  if (mockupNames && Array.isArray(mockupNames)) {
-    mockupNames.forEach((n) => {
-      const m = meta.find(x => x.name === n);
-      if (m) pick.push(m);
-    });
-  } else if (mockupName) {
-    const m = meta.find(x => x.name === mockupName);
-    if (m) pick.push(m);
-  } else if (meta.length > 0) {
-    pick.push(meta[0]);
-  }
+  const selected = Array.isArray(mockupNames) && mockupNames.length > 0
+    ? meta.filter((m) => mockupNames.includes(m.name))
+    : meta;
 
-  // Build target mockup object from first selected mockup (Agent 2 provides reference)
-  const reference = pick[0] || {
+  const reference = selected[0] || {
     name: 'default',
     description: 'Scale agentic AI successfully across the enterprise',
     filename: null
@@ -178,26 +170,27 @@ app.post('/api/agents/rebuild', (req, res) => {
   };
 
   const logs = [];
-  let iteration = 1;
+  let iteration = 0;
   let differences = compareBuildToMockup(build, mockup);
 
-  logs.push({ agent: 'agent1-builder', details: 'Initial build completed with basic enterprise sections.', build });
-  logs.push({ agent: 'agent2-checker', diff: differences, details: `Mockup checker found ${differences.length} difference(s).`, reference });
-  logs.push({ agent: 'agent3-inspector', recommendations: recommendationsFromDifferences(differences), details: 'Inspector reviewed the build and suggested corrective actions.' });
-
-  while (differences.length > 0 && iteration < 4) {
+  while (iteration < 4) {
     iteration += 1;
+    logs.push({ agent: 'agent1-builder', step: iteration, details: `Agent 1 built or rebuilt the page on pass ${iteration}.`, build: { ...build } });
+    logs.push({ agent: 'agent2-checker', step: iteration, diff: differences, details: `Agent 2 compared the build to the mockup references and found ${differences.length} difference(s).`, usedMockups: selected.map((m) => m.name) });
+
+    if (differences.length === 0) {
+      logs.push({ agent: 'agent3-inspector', step: iteration, recommendations: [], details: 'Agent 3 confirmed the build matches Agent 2 references.' });
+      break;
+    }
+
     const recs = recommendationsFromDifferences(differences);
+    logs.push({ agent: 'agent3-inspector', step: iteration, recommendations: recs, details: 'Agent 3 reviewed the differences and issued reconciliation actions.' });
     build = applyRecommendations(build, recs);
     differences = compareBuildToMockup(build, mockup);
-
-    logs.push({ agent: 'agent1-builder', details: `Rebuilt page after iteration ${iteration - 1}.`, build });
-    logs.push({ agent: 'agent2-checker', diff: differences, details: `Mockup checker evaluated the rebuild and found ${differences.length} difference(s).`, reference });
-    logs.push({ agent: 'agent3-inspector', recommendations: recommendationsFromDifferences(differences), details: 'Inspector reviewed the rebuild and suggested remaining improvements.' });
   }
 
   const status = differences.length === 0 ? 'completed' : 'needs attention';
-  return res.json({ status, iterations: iteration, finalDifferences: differences, logs, usedMockups: pick.map(p => p.name) });
+  return res.json({ status, iterations: iteration, finalDifferences: differences, logs, usedMockups: selected.map((m) => m.name) });
 });
 
 // Demo request endpoint - stores submissions as JSON lines
@@ -214,26 +207,36 @@ app.post('/api/demo-request', (req, res) => {
 });
 
 // Mockup upload endpoint (Agent 2 uses saved mockups for comparison)
-app.post('/api/mockup', (req, res) => {
-  const { name, description, imageData } = req.body || {};
-  if (!name || !imageData) return res.status(400).json({ error: 'name and imageData required' });
+app.post('/api/mockup', upload.single('image'), (req, res) => {
+  const { name, description, imageData, imageBase64, mimeType } = req.body || {};
+  let mime;
+  let b64;
+
+  if (req.file) {
+    mime = req.file.mimetype;
+    b64 = req.file.buffer.toString('base64');
+  } else {
+    const payload = imageData || (mimeType && imageBase64 ? `data:${mimeType};base64,${imageBase64}` : null);
+    if (!name || !payload) return res.status(400).json({ error: 'name and image data required' });
+
+    const matches = payload.match(/^data:(.+);base64,(.+)$/);
+    if (!matches) return res.status(400).json({ error: 'invalid image data format' });
+    mime = matches[1];
+    b64 = matches[2];
+  }
+
+  if (!name || !mime || !b64) return res.status(400).json({ error: 'name and image data required' });
 
   const mockupsDir = path.join(dataDir, 'mockups');
   try { fs.mkdirSync(mockupsDir, { recursive: true }); } catch (e) { /* ignore */ }
 
-  // imageData is expected to be a data URL: data:image/png;base64,....
-  const matches = imageData.match(/^data:(image\/.+);base64,(.+)$/);
-  if (!matches) return res.status(400).json({ error: 'invalid imageData' });
-  const mime = matches[1];
-  const b64 = matches[2];
   const ext = mime.split('/')[1].split('+')[0] || 'png';
   const filename = `${name.replace(/[^a-z0-9_-]/gi, '_')}.${ext}`;
   const outPath = path.join(mockupsDir, filename);
 
   try {
     fs.writeFileSync(outPath, Buffer.from(b64, 'base64'));
-    // save metadata
-    const meta = { name, description: description || '', filename, uploadedAt: new Date().toISOString() };
+    const meta = { name, description: description || '', filename, mimeType: mime, uploadedAt: new Date().toISOString() };
     const metaFile = path.join(mockupsDir, 'mockups.json');
     let list = [];
     try { list = JSON.parse(fs.readFileSync(metaFile, 'utf8')); } catch (e) { list = []; }
@@ -250,36 +253,37 @@ app.post('/api/mockup', (req, res) => {
 
 // Agent 2: Check demo landing page against kore.ai demo-request mockup (simulated)
 app.get('/api/agents/check-demo', (req, res) => {
-  // Simulated comparison result
-  // Load saved mockups if any
+  const requested = req.query.mockupNames ? req.query.mockupNames.split(',') : [];
   const mockupsDir = path.join(dataDir, 'mockups');
   let meta = [];
   try { meta = JSON.parse(fs.readFileSync(path.join(mockupsDir, 'mockups.json'), 'utf8')); } catch (e) { meta = []; }
 
+  const selected = requested.length > 0 ? meta.filter((m) => requested.includes(m.name)) : meta;
   const issues = [];
   const recommendations = [];
 
-  if (meta.length === 0) {
+  if (selected.length === 0) {
     issues.push('no-reference-mockup');
-    recommendations.push('Upload a reference mockup via /admin/mockups.html');
+    recommendations.push('Upload a reference mockup via /admin/mockups.html and select it.');
   } else {
-    // Basic simulated checks: verify an image exists and description length
-    const primary = meta[0];
-    const imagePath = path.join(mockupsDir, primary.filename);
-    if (!fs.existsSync(imagePath)) {
-      issues.push('missing:reference-image');
-      recommendations.push('Re-upload the reference image.');
+    selected.forEach((primary) => {
+      const imagePath = path.join(mockupsDir, primary.filename);
+      if (!fs.existsSync(imagePath)) {
+        issues.push(`missing-image:${primary.name}`);
+        recommendations.push(`Re-upload the reference image for ${primary.name}.`);
+      }
+      if (!primary.description || primary.description.length < 40) {
+        issues.push(`copy-short:${primary.name}`);
+        recommendations.push(`Extend the description for ${primary.name} to include enterprise governance and observability.`);
+      }
+    });
+    if (issues.length === 0) {
+      issues.push('ok');
+      recommendations.push('Mockup looks complete for the selected reference.');
     }
-    if (!primary.description || primary.description.length < 40) {
-      issues.push('copy:short-description');
-      recommendations.push('Provide a longer description highlighting enterprise governance and observability in agentic AI.');
-    }
-    // Example privacy check
-    issues.push('missing:consent-checkbox');
-    recommendations.push('Add a consent checkbox for marketing/privacy compliance.');
   }
 
-  return res.json({ ok: meta.length > 0 && issues.length === 0, issues, recommendations, meta });
+  return res.json({ ok: selected.length > 0 && issues.length === 1 && issues[0] === 'ok', issues, recommendations, selected });
 });
 
 // Always serve index for unknown routes (SPA-friendly)
@@ -305,6 +309,11 @@ app.get('/mockups/:file', (req, res) => {
   const contentType = (ext === '.png' && 'image/png') || (ext === '.jpg' || ext === '.jpeg' && 'image/jpeg') || (ext === '.webp' && 'image/webp') || (ext === '.svg' && 'image/svg+xml') || 'application/octet-stream';
   res.setHeader('Content-Type', contentType);
   fs.createReadStream(full).pipe(res);
+});
+
+// API fallback for unknown endpoints
+app.all('/api/*', (req, res) => {
+  res.status(404).json({ error: 'API endpoint not found' });
 });
 
 // Always serve index for unknown routes (SPA-friendly)

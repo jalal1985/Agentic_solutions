@@ -5,7 +5,31 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Mockup Upload — Admin</title>
     <link rel="stylesheet" href="/styles.css">
-    <style>main{padding:32px}</style>
+    <style>
+      main{padding:32px}
+      .dropzone {
+        border: 2px dashed #0088ff;
+        border-radius: 12px;
+        padding: 24px;
+        text-align: center;
+        color: #334;
+        background: #f7fbff;
+        transition: background 0.2s, border-color 0.2s;
+        cursor: pointer;
+      }
+      .dropzone.dragover {
+        background: #e4f0ff;
+        border-color: #005fcc;
+      }
+      .dropzone p {
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+      .dropzone small {
+        color: #777;
+      }
+    </style>
   </head>
   <body>
     <nav class="navbar"><div class="container"><div class="navbar-brand"><a href="/" class="brand-link"><h2>databrain</h2></a></div></div></nav>
@@ -13,15 +37,19 @@
       <h1>Upload Reference Mockup</h1>
       <p>Upload a screenshot or reference image and an optional description. Agent 2 will use this to compare builds.</p>
 
-      <form id="mockupForm">
+      <form id="mockupForm" enctype="multipart/form-data">
         <label>Mockup name*</label>
-        <input id="name" required placeholder="kore-demo-hero">
+        <input id="name" name="name" required placeholder="kore-demo-hero">
 
         <label>Description</label>
-        <input id="description" placeholder="Short description of the mockup">
+        <input id="description" name="description" placeholder="Short description of the mockup">
 
         <label>Image*</label>
-        <input id="image" type="file" accept="image/*" required>
+        <div id="dropzone" class="dropzone">
+          <p>Drag & drop a screenshot here, or click to select a file.</p>
+          <small>Supports JPG, PNG, WEBP and other image formats.</small>
+        </div>
+        <input id="image" name="image" type="file" accept="image/*" required style="margin-top:10px;">
 
         <div style="margin-top:12px;"><button class="cta-btn primary" type="submit">Upload Mockup</button></div>
       </form>
@@ -30,13 +58,16 @@
 
       <hr style="margin:28px 0">
 
-      <div style="display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
         <h2>Uploaded Mockups</h2>
         <div>
           <button id="refreshList" class="cta-btn">Refresh</button>
           <button id="runCheck" class="cta-btn primary">Run Agent 2 Check</button>
+          <button id="runRebuild" class="cta-btn secondary">Run Agent 1 Rebuild</button>
         </div>
       </div>
+
+      <div style="margin-top:12px;color:#555;font-size:14px;">Select one or more mockups and then choose a workflow: Agent 2 check only, or trigger Agent 1 rebuild with Agent 3 reconciliation.</div>
 
       <div id="mockupList" style="margin-top:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px"></div>
 
@@ -44,6 +75,15 @@
     </main>
 
     <script>
+      async function parseResponse(response) {
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          return response.json();
+        }
+        const text = await response.text();
+        return { ok: false, error: text || `HTTP ${response.status}` };
+      }
+
       document.getElementById('mockupForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const name = document.getElementById('name').value.trim();
@@ -52,20 +92,44 @@
         const resEl = document.getElementById('result');
         if (!file) return resEl.textContent = 'Select an image file.';
         resEl.textContent = 'Uploading...';
-        const reader = new FileReader();
-        reader.onload = async () => {
-          const imageData = reader.result; // data URL
-          try {
-            const r = await fetch('/api/mockup', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ name, description, imageData }) });
-            const json = await r.json();
-            if (!r.ok) throw new Error(json.error || 'Upload failed');
-            resEl.textContent = '✅ Uploaded: ' + JSON.stringify(json.meta);
-            loadMockups();
-          } catch (err) {
-            resEl.textContent = '❌ ' + err.message;
-          }
-        };
-        reader.readAsDataURL(file);
+
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('description', description);
+        formData.append('image', file);
+
+        try {
+          const r = await fetch('/api/mockup', { method: 'POST', body: formData });
+          const json = await parseResponse(r);
+          if (!r.ok) throw new Error(json.error || 'Upload failed');
+          resEl.textContent = '✅ Uploaded: ' + JSON.stringify(json.meta);
+          loadMockups();
+        } catch (err) {
+          resEl.textContent = '❌ ' + err.message;
+        }
+      });
+
+      const dropzone = document.getElementById('dropzone');
+      const fileInput = document.getElementById('image');
+
+      dropzone.addEventListener('click', () => fileInput.click());
+      dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+      });
+      dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+      dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (!file) return;
+        fileInput.files = e.dataTransfer.files;
+        dropzone.querySelector('p').textContent = file.name;
+      });
+      fileInput.addEventListener('change', () => {
+        if (fileInput.files.length > 0) {
+          dropzone.querySelector('p').textContent = fileInput.files[0].name;
+        }
       });
 
       async function loadMockups() {
@@ -121,11 +185,13 @@
       document.getElementById('refreshList').addEventListener('click', loadMockups);
 
       document.getElementById('runCheck').addEventListener('click', async () => {
+        const selected = Array.from(document.querySelectorAll('.mockup-select:checked')).map(i => i.value);
         const out = document.getElementById('checkResult');
         out.textContent = 'Running Agent 2 check...';
         try {
-          const r = await fetch('/api/agents/check-demo');
-          const j = await r.json();
+          const query = selected.length > 0 ? `?mockupNames=${encodeURIComponent(selected.join(','))}` : '';
+          const r = await fetch('/api/agents/check-demo' + query);
+          const j = await parseResponse(r);
           out.innerHTML = '<pre>' + JSON.stringify(j, null, 2) + '</pre>';
         } catch (err) {
           out.textContent = 'Check failed: ' + err.message;
@@ -139,7 +205,7 @@
         out.textContent = 'Triggering Agent 1 rebuild using selected mockups...';
         try {
           const r = await fetch('/api/agents/rebuild', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ mockupNames: selected }) });
-          const j = await r.json();
+          const j = await parseResponse(r);
           out.innerHTML = '<pre>' + JSON.stringify(j, null, 2) + '</pre>';
         } catch (err) {
           out.textContent = 'Rebuild failed: ' + err.message;
