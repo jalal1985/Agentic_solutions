@@ -280,6 +280,31 @@ app.get('/api/agents/check-demo', (req, res) => {
 });
 
 // Always serve index for unknown routes (SPA-friendly)
+// Endpoint to list uploaded mockups metadata
+app.get('/api/mockups', (req, res) => {
+  const mockupsDir = path.join(dataDir, 'mockups');
+  const metaFile = path.join(mockupsDir, 'mockups.json');
+  try {
+    const list = JSON.parse(fs.readFileSync(metaFile, 'utf8'));
+    return res.json({ ok: true, mockups: list });
+  } catch (e) {
+    return res.json({ ok: true, mockups: [] });
+  }
+});
+
+// Serve uploaded mockup image files
+app.get('/mockups/:file', (req, res) => {
+  const mockupsDir = path.join(dataDir, 'mockups');
+  const file = req.params.file;
+  const full = path.join(mockupsDir, file);
+  if (!fs.existsSync(full)) return res.status(404).send('Not found');
+  const ext = path.extname(full).toLowerCase();
+  const contentType = (ext === '.png' && 'image/png') || (ext === '.jpg' || ext === '.jpeg' && 'image/jpeg') || (ext === '.webp' && 'image/webp') || (ext === '.svg' && 'image/svg+xml') || 'application/octet-stream';
+  res.setHeader('Content-Type', contentType);
+  fs.createReadStream(full).pipe(res);
+});
+
+// Always serve index for unknown routes (SPA-friendly)
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });

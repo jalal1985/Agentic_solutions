@@ -27,6 +27,20 @@
       </form>
 
       <div id="result" style="margin-top:16px"></div>
+
+      <hr style="margin:28px 0">
+
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <h2>Uploaded Mockups</h2>
+        <div>
+          <button id="refreshList" class="cta-btn">Refresh</button>
+          <button id="runCheck" class="cta-btn primary">Run Agent 2 Check</button>
+        </div>
+      </div>
+
+      <div id="mockupList" style="margin-top:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px"></div>
+
+      <div id="checkResult" style="margin-top:18px"></div>
     </main>
 
     <script>
@@ -46,12 +60,68 @@
             const json = await r.json();
             if (!r.ok) throw new Error(json.error || 'Upload failed');
             resEl.textContent = '✅ Uploaded: ' + JSON.stringify(json.meta);
+            loadMockups();
           } catch (err) {
             resEl.textContent = '❌ ' + err.message;
           }
         };
         reader.readAsDataURL(file);
       });
+
+      async function loadMockups() {
+        const el = document.getElementById('mockupList');
+        el.innerHTML = 'Loading...';
+        try {
+          const r = await fetch('/api/mockups');
+          const j = await r.json();
+          el.innerHTML = '';
+          if (!j.mockups || j.mockups.length === 0) { el.innerHTML = '<em>No mockups uploaded yet.</em>'; return; }
+          j.mockups.forEach((m) => {
+            const card = document.createElement('div');
+            card.style.background = '#fff';
+            card.style.border = '1px solid #eee';
+            card.style.padding = '12px';
+            card.style.borderRadius = '8px';
+            const img = document.createElement('img');
+            img.src = '/mockups/' + m.filename;
+            img.style.width = '100%';
+            img.style.height = '140px';
+            img.style.objectFit = 'cover';
+            img.alt = m.name;
+            const title = document.createElement('div');
+            title.style.fontWeight = '700';
+            title.style.marginTop = '8px';
+            title.textContent = m.name;
+            const desc = document.createElement('div');
+            desc.style.color = '#666';
+            desc.style.fontSize = '13px';
+            desc.textContent = m.description || '';
+            card.appendChild(img);
+            card.appendChild(title);
+            card.appendChild(desc);
+            el.appendChild(card);
+          });
+        } catch (err) {
+          el.innerHTML = 'Failed to load mockups: ' + err.message;
+        }
+      }
+
+      document.getElementById('refreshList').addEventListener('click', loadMockups);
+
+      document.getElementById('runCheck').addEventListener('click', async () => {
+        const out = document.getElementById('checkResult');
+        out.textContent = 'Running Agent 2 check...';
+        try {
+          const r = await fetch('/api/agents/check-demo');
+          const j = await r.json();
+          out.innerHTML = '<pre>' + JSON.stringify(j, null, 2) + '</pre>';
+        } catch (err) {
+          out.textContent = 'Check failed: ' + err.message;
+        }
+      });
+
+      // initial load
+      loadMockups();
     </script>
   </body>
 </html>
