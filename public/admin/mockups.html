@@ -96,9 +96,21 @@
             desc.style.color = '#666';
             desc.style.fontSize = '13px';
             desc.textContent = m.description || '';
+            const select = document.createElement('div');
+            select.style.marginTop = '8px';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.value = m.name;
+            checkbox.className = 'mockup-select';
+            select.appendChild(checkbox);
+            const label = document.createElement('span');
+            label.textContent = ' Use for rebuild';
+            label.style.marginLeft = '6px';
+            select.appendChild(label);
             card.appendChild(img);
             card.appendChild(title);
             card.appendChild(desc);
+            card.appendChild(select);
             el.appendChild(card);
           });
         } catch (err) {
@@ -117,6 +129,20 @@
           out.innerHTML = '<pre>' + JSON.stringify(j, null, 2) + '</pre>';
         } catch (err) {
           out.textContent = 'Check failed: ' + err.message;
+        }
+      });
+
+      document.getElementById('runRebuild').addEventListener('click', async () => {
+        const selected = Array.from(document.querySelectorAll('.mockup-select:checked')).map(i => i.value);
+        if (selected.length === 0) return alert('Select at least one mockup to use for rebuild');
+        const out = document.getElementById('checkResult');
+        out.textContent = 'Triggering Agent 1 rebuild using selected mockups...';
+        try {
+          const r = await fetch('/api/agents/rebuild', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ mockupNames: selected }) });
+          const j = await r.json();
+          out.innerHTML = '<pre>' + JSON.stringify(j, null, 2) + '</pre>';
+        } catch (err) {
+          out.textContent = 'Rebuild failed: ' + err.message;
         }
       });
 

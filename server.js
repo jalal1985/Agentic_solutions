@@ -134,10 +134,37 @@ function applyRecommendations(build, recommendations) {
 }
 
 app.post('/api/agents/rebuild', (req, res) => {
+  const { mockupName, mockupNames } = req.body || {};
+
+  // load mockups metadata
+  const mockupsDir = path.join(dataDir, 'mockups');
+  let meta = [];
+  try { meta = JSON.parse(fs.readFileSync(path.join(mockupsDir, 'mockups.json'), 'utf8')); } catch (e) { meta = []; }
+
+  const pick = [];
+  if (mockupNames && Array.isArray(mockupNames)) {
+    mockupNames.forEach((n) => {
+      const m = meta.find(x => x.name === n);
+      if (m) pick.push(m);
+    });
+  } else if (mockupName) {
+    const m = meta.find(x => x.name === mockupName);
+    if (m) pick.push(m);
+  } else if (meta.length > 0) {
+    pick.push(meta[0]);
+  }
+
+  // Build target mockup object from first selected mockup (Agent 2 provides reference)
+  const reference = pick[0] || {
+    name: 'default',
+    description: 'Scale agentic AI successfully across the enterprise',
+    filename: null
+  };
+
   const mockup = {
     brand: 'databrain',
-    heroText: 'Scale agentic AI successfully across the enterprise',
-    heroCtaLink: '/demo',
+    heroText: reference.description || 'Scale agentic AI successfully across the enterprise',
+    heroCtaLink: '/demo-landing',
     hasDemoPage: true,
     sections: ['features', 'useCases', 'clients', 'demo', 'testimonials', 'recognition']
   };
@@ -145,7 +172,7 @@ app.post('/api/agents/rebuild', (req, res) => {
   let build = {
     brand: 'Agentic AI',
     heroText: 'Scale agentic AI successfully across the enterprise',
-    heroCtaLink: '/demo',
+    heroCtaLink: '/demo-landing',
     hasDemoPage: false,
     sections: ['features', 'useCases', 'clients']
   };
@@ -154,47 +181,23 @@ app.post('/api/agents/rebuild', (req, res) => {
   let iteration = 1;
   let differences = compareBuildToMockup(build, mockup);
 
-  logs.push({
-    agent: 'agent1-builder',
-    details: 'Initial build completed with basic enterprise sections.',
-    build
-  });
-  logs.push({
-    agent: 'agent2-checker',
-    diff: differences,
-    details: `Mockup checker found ${differences.length} difference(s).`
-  });
-  logs.push({
-    agent: 'agent3-inspector',
-    recommendations: recommendationsFromDifferences(differences),
-    details: 'Inspector reviewed the build and suggested corrective actions.'
-  });
+  logs.push({ agent: 'agent1-builder', details: 'Initial build completed with basic enterprise sections.', build });
+  logs.push({ agent: 'agent2-checker', diff: differences, details: `Mockup checker found ${differences.length} difference(s).`, reference });
+  logs.push({ agent: 'agent3-inspector', recommendations: recommendationsFromDifferences(differences), details: 'Inspector reviewed the build and suggested corrective actions.' });
 
-  while (differences.length > 1 && iteration < 3) {
+  while (differences.length > 0 && iteration < 4) {
     iteration += 1;
     const recs = recommendationsFromDifferences(differences);
     build = applyRecommendations(build, recs);
     differences = compareBuildToMockup(build, mockup);
 
-    logs.push({
-      agent: 'agent1-builder',
-      details: `Rebuilt page after iteration ${iteration - 1}.`,
-      build
-    });
-    logs.push({
-      agent: 'agent2-checker',
-      diff: differences,
-      details: `Mockup checker evaluated the rebuild and found ${differences.length} difference(s).`
-    });
-    logs.push({
-      agent: 'agent3-inspector',
-      recommendations: recommendationsFromDifferences(differences),
-      details: 'Inspector reviewed the second build and suggested remaining improvements.'
-    });
+    logs.push({ agent: 'agent1-builder', details: `Rebuilt page after iteration ${iteration - 1}.`, build });
+    logs.push({ agent: 'agent2-checker', diff: differences, details: `Mockup checker evaluated the rebuild and found ${differences.length} difference(s).`, reference });
+    logs.push({ agent: 'agent3-inspector', recommendations: recommendationsFromDifferences(differences), details: 'Inspector reviewed the rebuild and suggested remaining improvements.' });
   }
 
   const status = differences.length === 0 ? 'completed' : 'needs attention';
-  return res.json({ status, iterations: iteration, finalDifferences: differences, logs });
+  return res.json({ status, iterations: iteration, finalDifferences: differences, logs, usedMockups: pick.map(p => p.name) });
 });
 
 // Demo request endpoint - stores submissions as JSON lines
